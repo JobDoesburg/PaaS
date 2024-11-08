@@ -2,19 +2,16 @@ use actix_web::dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Tr
 use actix_web::{Error, HttpMessage};
 use futures_util::future::{ok, LocalBoxFuture, Ready};
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::borrow::Borrow;
 use std::fs;
 use std::sync::Arc;
 use actix_web::error::ErrorUnauthorized;
-
-#[derive(Deserialize)]
-struct TokenConfig {
-    tokens: HashMap<String, String>,
-}
+use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
+use serde::Serialize;
 
 #[derive(Clone)]
 pub struct AuthMiddleware {
-    tokens: Arc<HashMap<String, String>>,
+    decoding_key: Arc<DecodingKey>,
 }
 
 #[derive(Clone, Debug)]
@@ -25,10 +22,11 @@ pub struct AuthenticationInfo {
 impl AuthMiddleware {
     pub fn new(token_file: &str) -> Self {
         let file_content = fs::read_to_string(token_file).expect("Failed to read token file");
-        let token_config: TokenConfig =
-            serde_yml::from_str(&file_content).expect("Failed to parse token file");
+        // let token_config: TokenConfig =
+        //     serde_yml::from_str(&file_content).expect("Failed to parse token file");
+        let decoding_key = DecodingKey::from_rsa_pem(file_content.as_bytes()).expect("Failed to use provided public key for JWTs");
         AuthMiddleware {
-            tokens: Arc::new(token_config.tokens),
+            decoding_key: Arc::new(decoding_key),
         }
     }
 }
@@ -48,14 +46,19 @@ where
     fn new_transform(&self, service: S) -> Self::Future {
         ok(AuthMiddlewareService {
             service,
-            tokens: Arc::clone(&self.tokens),
+            decoding_key: Arc::clone(&self.decoding_key),
         })
     }
 }
 
 pub struct AuthMiddlewareService<S> {
     service: S,
-    tokens: Arc<HashMap<String, String>>,
+    decoding_key: Arc<DecodingKey>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+   id: String,
 }
 
 impl<S, B> Service<ServiceRequest> for AuthMiddlewareService<S>
@@ -71,15 +74,16 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        let token = req
+        let len = "bearer ".len();
+        let user_id: Option<String> = req
             .headers()
             .get("Authorization")
-            .and_then(|header| header.to_str().ok());
+            .and_then(|header| header.to_str().ok())
+            .and_then(|hv| Some(&hv[len..]))
+            .and_then(|token| decode::<Claims>(token, self.decoding_key.borrow(), &Validation::new(Algorithm::RS256)).ok())
+            .and_then(|f| Some(f.claims.id));
 
-        if let Some(token) = token {
-            for (user, user_token) in self.tokens.iter() {
-                if user_token == token.trim_start_matches("Bearer ") {
-                    let found_user = user.clone();
+        if let Some(found_user) = user_id {
                     println!("Found user: {}", found_user); // TODO: Should be logged or removed
                     req.extensions_mut().insert::<AuthenticationInfo>({
                         AuthenticationInfo {
@@ -90,8 +94,6 @@ where
                         let res = fut.await?;
                         Ok(res)
                     });
-                };
-            }
         }
 
         Box::pin(async move { Err(ErrorUnauthorized("Unauthorized")) }) // TODO check actix-extras#260 to give correct CORS headers on error

@@ -19,3 +19,4 @@ redis = "0.27.0"
 chrono = "0.4.38"
 redis-macros = "0.4.2"
 hex = "0.4.3"
+jsonwebtoken = {features = ["use_pem"], version = "9.3.0" }
