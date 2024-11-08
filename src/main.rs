@@ -15,7 +15,7 @@ use env_logger::Env; // Import for header configuration
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let auth_middleware = AuthMiddleware::new("resources/tokens.yml");
+    let auth_middleware = AuthMiddleware::new("resources/public.pem");
     let domain_middleware = DomainMiddleware::new("resources/allowlist.yml");
     let redis_connector = RedisConnector::new().expect("Failed to connect to Redis");
     let pep_system = pep_crypto::create_pep_crypto_system("resources/server_config.yml");
