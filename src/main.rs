@@ -1,7 +1,7 @@
 mod application;
 mod auth_middleware;
-mod pseudo_domain_middleware;
 mod pep_crypto;
+mod pseudo_domain_middleware;
 mod redis_connector;
 
 use crate::application::*;
@@ -10,7 +10,7 @@ use crate::pseudo_domain_middleware::DomainMiddleware;
 use crate::redis_connector::RedisConnector;
 use actix_cors::Cors;
 use actix_web::middleware::Logger;
-use actix_web::{web, App, HttpServer};
+use actix_web::{http::header, web, App, HttpServer};
 use env_logger::Env; // Import for header configuration
 
 #[actix_web::main]

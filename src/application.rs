@@ -84,7 +84,7 @@ fn has_access_to_context(
     user_sessions: Vec<String>,
 ) -> bool {
     // Access control alleen bij de prefix en niet postfix. Voor nu postfix loggen.
-    // dec_context moet gelijk zijn aan jou sessie.
+    // dec_context moet gelijk zijn aan jouw sessie.
     user_sessions.contains(&dec_context)
         && from.contains(&pseudonym_context_from)
         && to.contains(&pseudonym_context_to)
