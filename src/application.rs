@@ -3,10 +3,10 @@ use crate::pseudo_domain_middleware::DomainInfo;
 use crate::redis_connector::RedisConnector;
 use actix_web::web::{Bytes, Data};
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Responder};
-use libpep::arithmetic::ScalarTraits;
-use libpep::distributed::PEPSystem;
-use libpep::elgamal::ElGamal;
-use libpep::high_level::{EncryptedPseudonym, EncryptionContext, PseudonymizationContext};
+use libpep::distributed::systems::PEPSystem;
+use libpep::high_level::contexts::{EncryptionContext, PseudonymizationContext};
+use libpep::high_level::data_types::{Encrypted, EncryptedPseudonym};
+use libpep::internal::arithmetic::ScalarTraits;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::sync::Arc;
@@ -61,20 +61,6 @@ pub async fn status() -> impl Responder {
     })
 }
 
-// fn hex_to_blindingfactor(s: &str) -> libpep::distributed::BlindingFactor {
-//     let scalar = libpep::arithmetic::ScalarNonZero::decode_from_hex(s).unwrap();
-//     libpep::distributed::BlindingFactor(scalar)
-// }
-
-pub async fn random() -> impl Responder {
-    let random = libpep::arithmetic::GroupElement::random(&mut rand::thread_rng());
-    let enc = libpep::elgamal::encrypt(&random, &libpep::arithmetic::G, &mut rand::thread_rng());
-
-    HttpResponse::Ok().json(EncryptedPseudonymResponse {
-        encrypted_pseudonym: enc.encode_to_base64(),
-    })
-}
-
 fn has_access_to_context(
     from: Arc<Vec<String>>,
     to: Arc<Vec<String>>,
@@ -122,13 +108,12 @@ pub async fn pseudonymize(
         return HttpResponse::Forbidden().body("Domain not allowed");
     }
 
-    let msg_in = ElGamal::decode_from_base64(&request.encrypted_pseudonym);
+    let msg_in = EncryptedPseudonym::from_base64(&request.encrypted_pseudonym);
     if msg_in.is_none() {
         return HttpResponse::BadRequest().body("Invalid input");
     }
-    let msg_in = EncryptedPseudonym::new(msg_in.unwrap());
     let msg_out = pep_system.pseudonymize(
-        &msg_in,
+        &msg_in.unwrap(),
         &pep_system.pseudonymization_info(
             &request.pseudonym_context_from,
             &request.pseudonym_context_to,
@@ -163,7 +148,7 @@ pub async fn start_session(
         .unwrap();
 
     let key_share = pep_system
-        .session_key_share(&EncryptionContext(session_id.clone()))
+        .session_key_share(&EncryptionContext::from(&session_id.clone()))
         .encode_to_hex();
 
     HttpResponse::Ok().json(StartSessionResponse {

@@ -28,7 +28,6 @@ async fn main() -> std::io::Result<()> {
             .wrap(Cors::permissive())
             .wrap(Logger::default())
             .route("/status", web::get().to(status))
-            .route("/random", web::get().to(random))
             .service(
                 web::scope("")
                     .app_data(web::Data::new(redis_connector.clone()))
