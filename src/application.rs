@@ -76,30 +76,11 @@ fn has_access_to_context(
         && to.contains(&pseudonym_context_to)
 }
 
-pub async fn pseudonymize_to(
+pub async fn pseudonymize(
     req: HttpRequest,
     body: Bytes,
     redis: Data<RedisConnector>,
     pep_system: Data<PEPSystem>,
-) -> impl Responder {
-    pseudonymize(req, body, redis, pep_system, false).await
-}
-
-pub async fn pseudonymize_from(
-    req: HttpRequest,
-    body: Bytes,
-    redis: Data<RedisConnector>,
-    pep_system: Data<PEPSystem>,
-) -> impl Responder {
-    pseudonymize(req, body, redis, pep_system, true).await
-}
-
-async fn pseudonymize(
-    req: HttpRequest,
-    body: Bytes,
-    redis: Data<RedisConnector>,
-    pep_system: Data<PEPSystem>,
-    from: bool,
 ) -> impl Responder {
     let auth = req
         .extensions()
@@ -115,17 +96,14 @@ async fn pseudonymize(
     let sessions = redis_connector
         .get_sessions_for_user(auth.username.to_string())
         .expect("Failed to get sessions");
-
+    dbg!(&domain_info.from);
+    dbg!(&domain_info.to);
     if !(has_access_to_context(
         domain_info.from,
         domain_info.to,
         request.pseudonym_context_from.clone(),
         request.pseudonym_context_to.clone(),
-        if from {
-            request.dec_context.clone()
-        } else {
-            request.enc_context.clone()
-        },
+        request.dec_context.clone(),
         sessions,
     )) {
         return HttpResponse::Forbidden().body("Domain not allowed");
@@ -149,6 +127,105 @@ async fn pseudonymize(
         encrypted_pseudonym: msg_out.encode_to_base64(),
     })
 }
+
+// pub async fn pseudonymize_to(
+//     req: HttpRequest,
+//     body: Bytes,
+//     redis: Data<RedisConnector>,
+//     pep_system: Data<PEPSystem>,
+// ) -> impl Responder {
+//     pseudonymize(req, body, redis, pep_system, false).await
+//     //TODO now does it for the encrypting user but should check for decrypting user.
+// }
+
+// pub async fn pseudonymize_from(
+//     req: HttpRequest,
+//     body: Bytes,
+//     redis: Data<RedisConnector>,
+//     pep_system: Data<PEPSystem>,
+// ) -> impl Responder {
+//     pseudonymize(req, body, redis, pep_system, true).await
+// }
+//
+// async fn pseudonymize(
+//     req: HttpRequest,
+//     body: Bytes,
+//     redis: Data<RedisConnector>,
+//     pep_system: Data<PEPSystem>,
+//     from: bool,
+// ) -> impl Responder {
+//     let auth = req
+//         .extensions()
+//         .get::<AuthenticationInfo>()
+//         .unwrap()
+//         .clone();
+//     let domain_info = req.extensions().get::<DomainInfo>().unwrap().clone();
+//     dbg!(&domain_info);
+//     let item = serde_json::from_slice::<PseudonymizationRequest>(&body);
+
+//     let request = item.unwrap();
+
+//     let mut redis_connector = redis.get_ref().clone();
+//     let sessions = if from {
+//         redis_connector
+//             .get_sessions_for_user(auth.username.to_string())
+//             .expect("Failed to get sessions")
+//     } else {
+//         match request
+//             .dec_context
+//             .clone()
+//             .0
+//             .split('_')
+//             .collect::<Vec<&str>>()
+//             .get(0)
+//         {
+//             None => return HttpResponse::Forbidden().body("Domain not allowed"), //Can leak domains of other user..... to authenticated users.
+//             Some(user) => redis_connector
+//                 .get_sessions_for_user(user.to_string())
+//                 .expect("Failed to get sessions"),
+//         }
+//     };
+
+//     // let (pseudonym_context_from, pseudonym_context_to, dec_context) = if from {
+//     //     (request.pseudonym_context_from.clone(),request.pseudonym_context_to.clone(),request.dec_context.clone() )
+//     // } else {
+//     //     (request.pseudonym_context_to.clone(),request.pseudonym_context_from.clone(),request.enc_context.clone())
+//     // };
+//     dbg!(&sessions);
+
+//     if !(has_access_to_context(
+//         domain_info.from,
+//         domain_info.to,
+//         request.pseudonym_context_from.clone(),
+//         request.pseudonym_context_to.clone(),
+//         if from {
+//             request.dec_context.clone()
+//         } else {
+//             request.enc_context.clone()
+//         },
+//         sessions,
+//     )) {
+//         return HttpResponse::Forbidden().body("Domain not allowed");
+//     }
+
+//     let msg_in = EncryptedPseudonym::from_base64(&request.encrypted_pseudonym);
+//     if msg_in.is_none() {
+//         return HttpResponse::BadRequest().body("Invalid input");
+//     }
+//     let msg_out = pep_system.pseudonymize(
+//         &msg_in.unwrap(),
+//         &pep_system.pseudonymization_info(
+//             &request.pseudonym_context_from,
+//             &request.pseudonym_context_to,
+//             &request.enc_context,
+//             &request.dec_context,
+//         ),
+//     );
+
+//     HttpResponse::Ok().json(EncryptedPseudonymResponse {
+//         encrypted_pseudonym: msg_out.encode_to_base64(),
+//     })
+// }
 
 pub async fn rekey() -> impl Responder {
     HttpResponse::Ok().body("Rekey")
