@@ -10,7 +10,7 @@ use crate::pseudo_domain_middleware::DomainMiddleware;
 use crate::redis_connector::RedisConnector;
 use actix_cors::Cors;
 use actix_web::middleware::Logger;
-use actix_web::{http::header, web, App, HttpServer};
+use actix_web::{web, App, HttpServer};
 use env_logger::Env; // Import for header configuration
 
 #[actix_web::main]
@@ -37,10 +37,21 @@ async fn main() -> std::io::Result<()> {
                     .route("/end_session", web::post().to(end_session))
                     .route("/get_sessions", web::get().to(get_all_sessions))
                     .route("/get_sessions/{username}", web::get().to(get_sessions))
-                    .service(web::scope("").route(
-                        "/pseudonymize",
-                        web::post().to(pseudonymize).wrap(domain_middleware.clone()),
-                    ))
+                    .service(
+                        web::scope("")
+                            .route(
+                                "/pseudonymize_from",
+                                web::post()
+                                    .to(pseudonymize_from)
+                                    .wrap(domain_middleware.clone()),
+                            )
+                            .route(
+                                "/pseudonymize_to",
+                                web::post()
+                                    .to(pseudonymize_to)
+                                    .wrap(domain_middleware.clone()),
+                            ),
+                    )
                     .service(web::scope("").route(
                         "/rekey",
                         web::post().to(rekey).wrap(domain_middleware.clone()),

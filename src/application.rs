@@ -3,7 +3,7 @@ use crate::pseudo_domain_middleware::DomainInfo;
 use crate::redis_connector::RedisConnector;
 use actix_web::web::{Bytes, Data};
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Responder};
-use libpep::distributed::key_blinding::{SessionKeyShare};
+use libpep::distributed::key_blinding::SessionKeyShare;
 use libpep::distributed::systems::PEPSystem;
 use libpep::high_level::contexts::{EncryptionContext, PseudonymizationContext};
 use libpep::high_level::data_types::{Encrypted, EncryptedPseudonym};
@@ -76,11 +76,30 @@ fn has_access_to_context(
         && to.contains(&pseudonym_context_to)
 }
 
-pub async fn pseudonymize(
+pub async fn pseudonymize_to(
     req: HttpRequest,
     body: Bytes,
     redis: Data<RedisConnector>,
     pep_system: Data<PEPSystem>,
+) -> impl Responder {
+    pseudonymize(req, body, redis, pep_system, false).await
+}
+
+pub async fn pseudonymize_from(
+    req: HttpRequest,
+    body: Bytes,
+    redis: Data<RedisConnector>,
+    pep_system: Data<PEPSystem>,
+) -> impl Responder {
+    pseudonymize(req, body, redis, pep_system, true).await
+}
+
+async fn pseudonymize(
+    req: HttpRequest,
+    body: Bytes,
+    redis: Data<RedisConnector>,
+    pep_system: Data<PEPSystem>,
+    from: bool,
 ) -> impl Responder {
     let auth = req
         .extensions()
@@ -102,7 +121,11 @@ pub async fn pseudonymize(
         domain_info.to,
         request.pseudonym_context_from.clone(),
         request.pseudonym_context_to.clone(),
-        request.dec_context.clone(),
+        if from {
+            request.dec_context.clone()
+        } else {
+            request.enc_context.clone()
+        },
         sessions,
     )) {
         return HttpResponse::Forbidden().body("Domain not allowed");
@@ -147,8 +170,7 @@ pub async fn start_session(
         .start_session(auth.username.to_string())
         .unwrap();
 
-    let key_share = pep_system
-        .session_key_share(&EncryptionContext::from(&session_id.clone()));
+    let key_share = pep_system.session_key_share(&EncryptionContext::from(&session_id.clone()));
 
     HttpResponse::Ok().json(StartSessionResponse {
         session_id,
