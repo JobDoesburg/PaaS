@@ -3,10 +3,10 @@ use crate::pseudo_domain_middleware::DomainInfo;
 use crate::redis_connector::RedisConnector;
 use actix_web::web::{Bytes, Data};
 use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use libpep::distributed::key_blinding::{SessionKeyShare};
 use libpep::distributed::systems::PEPSystem;
 use libpep::high_level::contexts::{EncryptionContext, PseudonymizationContext};
 use libpep::high_level::data_types::{Encrypted, EncryptedPseudonym};
-use libpep::internal::arithmetic::ScalarTraits;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::sync::Arc;
@@ -38,7 +38,7 @@ pub struct GetSessionsRequest {
 #[derive(Serialize, Deserialize)]
 pub struct StartSessionResponse {
     session_id: String,
-    key_share: String,
+    key_share: SessionKeyShare,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -148,8 +148,7 @@ pub async fn start_session(
         .unwrap();
 
     let key_share = pep_system
-        .session_key_share(&EncryptionContext::from(&session_id.clone()))
-        .encode_to_hex();
+        .session_key_share(&EncryptionContext::from(&session_id.clone()));
 
     HttpResponse::Ok().json(StartSessionResponse {
         session_id,

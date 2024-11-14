@@ -18,10 +18,9 @@ pub fn create_pep_crypto_system(resource_file: &str) -> PEPSystem {
     let pep_system_config: PEPSystemConfig =
         serde_yml::from_str(&file_content).expect("Failed to parse token file");
 
-    let blinding_factor = BlindingFactor::from(
-        ScalarNonZero::decode_from_hex(pep_system_config.blinding_factor.as_str())
-            .expect("Failed to decode blinding factor"),
-    );
+    let blinding_factor =
+        BlindingFactor::decode_from_hex(pep_system_config.blinding_factor.as_str())
+            .expect("Failed to decode blinding factor");
 
     PEPSystem::new(
         PseudonymizationSecret::from(pep_system_config.pseudonymization_secret.into_bytes()),
