@@ -41,21 +41,6 @@ async fn main() -> std::io::Result<()> {
                         "/pseudonymize",
                         web::post().to(pseudonymize).wrap(domain_middleware.clone()),
                     ))
-                    // .service(
-                    //     web::scope("")
-                    //         .route(
-                    //             "/pseudonymize_from",
-                    //             web::post()
-                    //                 .to(pseudonymize_from)
-                    //                 .wrap(domain_middleware.clone()),
-                    //         )
-                    //         .route(
-                    //             "/pseudonymize_to",
-                    //             web::post()
-                    //                 .to(pseudonymize_to)
-                    //                 .wrap(domain_middleware.clone()),
-                    //         ),
-                    // )
                     .service(web::scope("").route(
                         "/rekey",
                         web::post().to(rekey).wrap(domain_middleware.clone()),
