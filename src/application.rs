@@ -96,8 +96,7 @@ pub async fn pseudonymize(
     let sessions = redis_connector
         .get_sessions_for_user(auth.username.to_string())
         .expect("Failed to get sessions");
-    dbg!(&domain_info.from);
-    dbg!(&domain_info.to);
+
     if !(has_access_to_context(
         domain_info.from,
         domain_info.to,

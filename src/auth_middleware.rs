@@ -22,8 +22,6 @@ pub struct AuthenticationInfo {
 impl AuthMiddleware {
     pub fn new(token_file: &str) -> Self {
         let file_content = fs::read_to_string(token_file).expect("Failed to read token file");
-        // let token_config: TokenConfig =
-        //     serde_yml::from_str(&file_content).expect("Failed to parse token file");
         let decoding_key = DecodingKey::from_rsa_pem(file_content.as_bytes())
             .expect("Failed to use provided public key for JWTs");
         AuthMiddleware {
