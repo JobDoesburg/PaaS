@@ -9,6 +9,7 @@ services:
       - redis1
     volumes:
       - ./allowlist.yml:/resources/allowlist.yml:ro
+      - ./public.pem:/resources/public.pem:ro
       - ./server_config1.yml:/resources/server_config.yml:ro
       - ./tokens1.yml:/resources/tokens.yml:ro
     healthcheck:
@@ -30,6 +31,7 @@ services:
       - redis2
     volumes:
       - ./allowlist.yml:/resources/allowlist.yml:ro
+      - ./public.pem:/resources/public.pem:ro
       - ./server_config2.yml:/resources/server_config.yml:ro
       - ./tokens2.yml:/resources/tokens.yml:ro
     healthcheck:
@@ -51,6 +53,7 @@ services:
       - redis3
     volumes:
       - ./allowlist.yml:/resources/allowlist.yml:ro
+      - ./public.pem:/resources/public.pem:ro
       - ./server_config3.yml:/resources/server_config.yml:ro
       - ./tokens3.yml:/resources/tokens.yml:ro
     healthcheck:
