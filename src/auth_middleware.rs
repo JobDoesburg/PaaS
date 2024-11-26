@@ -57,7 +57,7 @@ pub struct AuthMiddlewareService<S> {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
-    id: String,
+    sub: String,
 }
 
 impl<S, B> Service<ServiceRequest> for AuthMiddlewareService<S>
@@ -87,7 +87,7 @@ where
                 )
                 .ok()
             })
-            .and_then(|f| Some(f.claims.id));
+            .and_then(|f| Some(f.claims.sub));
 
         if let Some(found_user) = user_id {
             println!("Found user: {}", found_user); // TODO: Should be logged or removed
