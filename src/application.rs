@@ -1,4 +1,4 @@
-use crate::auth_middleware::AuthenticationInfo;
+use crate::auth_middleware::{AuthenticationInfo, Domains};
 use crate::pseudo_domain_middleware::DomainInfo;
 use crate::redis_connector::RedisConnector;
 use actix_web::web::{Bytes, Data};
@@ -62,8 +62,8 @@ pub async fn status() -> impl Responder {
 }
 
 fn has_access_to_context(
-    from: Arc<Vec<String>>,
-    to: Arc<Vec<String>>,
+    from: Arc<Domains>,
+    to: Arc<Domains>,
     pseudonym_context_from: PseudonymizationContext,
     pseudonym_context_to: PseudonymizationContext,
     dec_context: EncryptionContext,

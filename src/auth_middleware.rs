@@ -3,11 +3,14 @@ use actix_web::error::ErrorUnauthorized;
 use actix_web::{Error, HttpMessage};
 use futures_util::future::{ok, LocalBoxFuture, Ready};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use libpep::high_level::contexts::PseudonymizationContext;
 use serde::Deserialize;
 use serde::Serialize;
 use std::borrow::Borrow;
 use std::fs;
 use std::sync::Arc;
+
+use crate::pseudo_domain_middleware::DomainInfo;
 
 #[derive(Clone)]
 pub struct AuthMiddleware {
@@ -58,6 +61,25 @@ pub struct AuthMiddlewareService<S> {
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
     sub: String,
+    domainsto: Domains,
+    domainsfrom: Domains, 
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Domains {
+    All,
+    Storage,
+    Limited(Vec<String>),
+}
+
+impl Domains {
+    pub fn contains(&self, ctx: &PseudonymizationContext) -> bool {
+        match  self {
+            Domains::All => true,
+            Domains::Storage => ctx == &PseudonymizationContext("storage".to_string()),
+            Domains::Limited(vec) => vec.contains(&ctx),
+        }
+    }
 }
 
 impl<S, B> Service<ServiceRequest> for AuthMiddlewareService<S>
@@ -74,7 +96,7 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let len = "bearer ".len();
-        let user_id: Option<String> = req
+        let user_id = req
             .headers()
             .get("Authorization")
             .and_then(|header| header.to_str().ok())
@@ -86,15 +108,21 @@ where
                     &Validation::new(Algorithm::RS256),
                 )
                 .ok()
-            })
-            .and_then(|f| Some(f.claims.sub));
+            });
+            // .and_then(|f| Some(f.claims.sub));
 
-        if let Some(found_user) = user_id {
+        if let Some(data) = user_id {
+            let found_user = data.claims.sub;
             println!("Found user: {}", found_user); // TODO: Should be logged or removed
             req.extensions_mut().insert::<AuthenticationInfo>({
                 AuthenticationInfo {
                     username: Arc::new(found_user),
                 }
+            });
+
+            req.extensions_mut().insert(DomainInfo {
+                from: Arc::new( data.claims.domainsfrom),
+                to: Arc::new(data.claims.domainsto),
             });
             let fut = self.service.call(req);
             return Box::pin(async move {
